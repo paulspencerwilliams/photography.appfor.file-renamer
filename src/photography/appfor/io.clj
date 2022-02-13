@@ -1,17 +1,18 @@
 (ns photography.appfor.io
   (:require [clojure.java.io :as io])
-  (:import [com.drew.imaging ImageMetadataReader]
+  (:import [java.nio.file Files]
+           [com.drew.imaging ImageMetadataReader]
            [com.drew.metadata.exif ExifSubIFDDirectory]))
+
 
 (defn raw-files-metadata [dir]
     (->> dir
         io/file
         .listFiles
         (filter #(not (.isDirectory %)))
-        (map #(let [metadata
-                   (-> % 
-                       ImageMetadataReader/readMetadata
-                       (.getFirstDirectoryOfType ExifSubIFDDirectory))]
-               {:filename             (.getName %)
-                :original-time        (.getDate metadata ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
-                :original-time-offset (.getDate metadata ExifSubIFDDirectory/TAG_TIME_ZONE_ORIGINAL)}))))
+        (map #(merge {:filename (.getName %)
+                      :mimetype (Files/probeContentType (.toPath %))}
+                     (when-let [metadata (-> % ImageMetadataReader/readMetadata)]
+                       (when-let [exif-metadata (.getFirstDirectoryOfType metadata ExifSubIFDDirectory)]
+                         {:original-time        (.getDate exif-metadata ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
+                          :original-time-offset (.getDate exif-metadata ExifSubIFDDirectory/TAG_TIME_ZONE_ORIGINAL)}))))))
