@@ -14,5 +14,6 @@
                       :mimetype (Files/probeContentType (.toPath %))}
                      (when-let [metadata (-> % ImageMetadataReader/readMetadata)]
                        (when-let [exif-metadata (.getFirstDirectoryOfType metadata ExifSubIFDDirectory)]
-                         {:original-time        (.getDate exif-metadata ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
+                         {:original-time        (some identity [(.getDate exif-metadata ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
+                                                                (.getDate exif-metadata ExifSubIFDDirectory/TAG_DATETIME_DIGITIZED)])
                           :original-time-offset (.getDate exif-metadata ExifSubIFDDirectory/TAG_TIME_ZONE_ORIGINAL)}))))))
