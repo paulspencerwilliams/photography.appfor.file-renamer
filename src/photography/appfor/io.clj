@@ -4,16 +4,30 @@
            [com.drew.imaging ImageMetadataReader]
            [com.drew.metadata.exif ExifSubIFDDirectory]))
 
+(defn date-function [d] [(.getDate d ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
+                         (.getDate d ExifSubIFDDirectory/TAG_DATETIME_DIGITIZED)])
+
+(defn offset-function [d] [(.getString d ExifSubIFDDirectory/TAG_TIME_ZONE_ORIGINAL)
+                           (.getString d ExifSubIFDDirectory/TAG_TIME_ZONE_DIGITIZED)])
+
+(defn get-original-metadata-field [metadata, field-fn]
+  (->> metadata
+       .getDirectories
+       (filter #(instance? ExifSubIFDDirectory %))
+       (mapcat field-fn)
+       (some identity)))
+
+(defn raw-file-metadata [f]
+  (merge {:filename (.getName f)
+         :mimetype (Files/probeContentType (.toPath f))}
+         (when-let [metadata (-> f ImageMetadataReader/readMetadata)]
+           (when-let [original-time (get-original-metadata-field metadata date-function)]
+             {:original-time original-time
+              :original-time-offset  (get-original-metadata-field metadata offset-function)}))))
 
 (defn raw-files-metadata [dir]
     (->> dir
         io/file
         .listFiles
         (filter #(not (.isDirectory %)))
-        (map #(merge {:filename (.getName %)
-                      :mimetype (Files/probeContentType (.toPath %))}
-                     (when-let [metadata (-> % ImageMetadataReader/readMetadata)]
-                       (when-let [exif-metadata (.getFirstDirectoryOfType metadata ExifSubIFDDirectory)]
-                         {:original-time        (some identity [(.getDate exif-metadata ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
-                                                                (.getDate exif-metadata ExifSubIFDDirectory/TAG_DATETIME_DIGITIZED)])
-                          :original-time-offset (.getDate exif-metadata ExifSubIFDDirectory/TAG_TIME_ZONE_ORIGINAL)}))))))
+        (map raw-file-metadata)))
