@@ -1,7 +1,7 @@
 (ns photography.appfor.io
-  (:require [clojure.java.io :as io])
-  (:import [java.nio.file Files]
-           [com.drew.imaging ImageMetadataReader]
+  (:require [photography.appfor.utils :as u]
+            [clojure.java.io :as io])
+  (:import [com.drew.imaging ImageMetadataReader]
            [com.drew.metadata.exif ExifSubIFDDirectory]))
 
 (defn date-function [d] [(.getDate d ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
@@ -18,16 +18,17 @@
        (some identity)))
 
 (defn raw-file-metadata [f]
-  (merge {:filename (.getName f)
-         :mimetype (Files/probeContentType (.toPath f))}
+  (merge {:filename (.getName f)}
          (when-let [metadata (-> f ImageMetadataReader/readMetadata)]
-           (when-let [original-time (get-original-metadata-field metadata date-function)]
-             {:original-time original-time
-              :original-time-offset  (get-original-metadata-field metadata offset-function)}))))
+           (let [original-local-time  (get-original-metadata-field metadata date-function)
+                 original-time-offset (get-original-metadata-field metadata offset-function)]
+             {:original-utc-time    (u/to-utc original-local-time original-time-offset)
+              :original-local-time  original-local-time
+              :original-time-offset original-time-offset}))))
 
 (defn raw-files-metadata [dir]
-    (->> dir
-        io/file
-        .listFiles
-        (filter #(not (.isDirectory %)))
-        (map raw-file-metadata)))
+  (->> dir
+       io/file
+       .listFiles
+       (filter #(not (.isDirectory %)))
+       (map raw-file-metadata)))

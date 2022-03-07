@@ -1,5 +1,7 @@
 {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+        clojure.java-time/clojure.java-time {:mvn/version "0.3.3"}
+        com.widdindustries/time-literals {:mvn/version "0.1.6"}
         com.drewnoakes/metadata-extractor {:mvn/version "2.16.0"}}
  :aliases
  {:build {:deps {io.github.seancorfield/build-clj
