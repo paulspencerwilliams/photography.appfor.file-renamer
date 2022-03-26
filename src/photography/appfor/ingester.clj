@@ -1,4 +1,4 @@
-(ns photography.appfor.file-renamer)
+(ns photography.appfor.ingester)
 
 (defn foo
   "I don't do a whole lot."
