@@ -31,4 +31,5 @@
        io/file
        .listFiles
        (filter #(not (.isDirectory %)))
-       (map raw-file-metadata)))
+       (map raw-file-metadata)
+       (sort-by :filename)))
