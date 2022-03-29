@@ -12,6 +12,8 @@
 
 (def geotagged-yes-path (expand-home "~/Pictures/photography/2-possibly-geotagged/yes"))
 
+(def original-path "/Volumes/RAID/photography/originals")
+
 (defn date-function [d] [(.getDate d ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
                          (.getDate d ExifSubIFDDirectory/TAG_DATETIME_DIGITIZED)])
 
@@ -55,16 +57,22 @@
 (defn back-up-file [f]
   (io/copy f (io/file (str back-up-path "/" (.getName f)))))
 
-(defn move-to-geotagged-yes-dir [f]
+(defn dest-path [f dest-dir-path]
   (let [file-name      (-> f
                            raw-file-metadata
                            :original-utc-time
                            ((fn [filename] ( str  "Paul-Williams-" filename)))
                            (clojure.string/replace #":" "-"))
-        file-extension (clojure.string/lower-case (last (re-matches #".*\.(.*)" (.getName f))))
-        dest-path      (str geotagged-yes-path  "/" file-name "." file-extension)]
+        file-extension (clojure.string/lower-case (last (re-matches #".*\.(.*)" (.getName f))))]
+    (str dest-dir-path  "/" file-name "." file-extension)))
+
+(defn move-to-geotagged-yes-dir [f]
+  (let [dest-path (dest-path f geotagged-yes-path)]
     (if (not (.renameTo f (io/file dest-path)))
       (throw (Exception. (str "Could not move file to : " dest-path))))))
+
+(defn copy-to-originals-dir [f]
+  (io/copy f (io/file (dest-path f original-path))))
 
 (defn ensure-possibly-geotagged-dirs []
   (do (if (not (.mkdir (io/file geotagged-yes-path)))
