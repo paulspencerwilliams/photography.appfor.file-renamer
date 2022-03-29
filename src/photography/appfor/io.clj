@@ -59,8 +59,9 @@
   (let [file-name      (-> f
                            raw-file-metadata
                            :original-utc-time
+                           ((fn [filename] ( str  "Paul-Williams-" filename)))
                            (clojure.string/replace #":" "-"))
-        file-extension (last (re-matches #".*\.(.*)" (.getName f)))
+        file-extension (clojure.string/lower-case (last (re-matches #".*\.(.*)" (.getName f))))
         dest-path      (str geotagged-yes-path  "/" file-name "." file-extension)]
     (if (not (.renameTo f (io/file dest-path)))
       (throw (Exception. (str "Could not move file to : " dest-path))))))
