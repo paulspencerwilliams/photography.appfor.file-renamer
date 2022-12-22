@@ -10,4 +10,5 @@
       (.atZone  (if (nil? original-time-offset)
                   (ZoneId/of "Europe/London")
                   (ZoneOffset/of original-time-offset)))
-      (.withZoneSameInstant (ZoneOffset/UTC))))
+      (.withZoneSameInstant (ZoneOffset/UTC))
+      (.format DateTimeFormatter/ISO_DATE_TIME)))

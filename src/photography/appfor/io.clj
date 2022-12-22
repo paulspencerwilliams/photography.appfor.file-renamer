@@ -11,9 +11,9 @@
 
 (def back-up-path (str ingest-path "/backup"))
 
-(def geotagged-yes-path (expand-home "~/Pictures/photography/2-possibly-geotagged/yes"))
+(def original-path "/Volumes/RAID/photography/elete me")
 
-(def original-path "/Volumes/RAID/photography/originals")
+(def capture-one-path (expand-home "~/Pictures/photography/2-for-capture-one"))
 
 (defn date-function [d] [(.getDate d ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL)
                          (.getDate d ExifSubIFDDirectory/TAG_DATETIME_DIGITIZED)])
@@ -29,7 +29,8 @@
        (some identity)))
 
 (defn raw-file-metadata [f]
-  (merge {:filename (.getName f)}
+  (merge {:filename (.getName f)
+          :file f}
          (when-let [metadata (-> f ImageMetadataReader/readMetadata)]
            (let [original-local-time  (get-original-metadata-field metadata date-function)
                  original-time-offset (get-original-metadata-field metadata offset-function)]
@@ -37,48 +38,55 @@
               :original-local-time  original-local-time
               :original-time-offset original-time-offset}))))
 
-(defn raw-files-metadata [dir]
-  (->> dir
-       io/file
-       .listFiles
-       (filter #(not (.isDirectory %)))
-       (map raw-file-metadata)
-       (sort-by :filename)))
-
 (defn raw-files-to-ingest []
   (->> (io/file ingest-path)
        .listFiles
        (filter #(not (or (.isDirectory %)
                          (= (.getName %) ".DS_Store")
-                         (ends-with? (upper-case (.getName %)) ".XMP"))))))
+                         (ends-with? (upper-case (.getName %)) ".XMP"))))
+       (map raw-file-metadata)
+       (sort-by :filename)))
+
+(defn destination-filename
+  ([m i]
+   (let [file-name      (-> m
+                            :original-utc-time
+                            ((fn [filename] (str  "Paul-Williams-" filename)))
+                            (clojure.string/replace #":" "-"))
+         file-extension (clojure.string/lower-case (last (re-matches #".*\.(.*)" (:filename m))))]
+     (assoc m :destination-filename (str file-name (when i (str "-" (format "%03d" i))) "." file-extension))))
+  ([m] (destination-filename m nil)))
+
+(defn with-unique-per-second-destination-filename [s]
+  (->> s
+       (sort-by :filename)
+       (map-indexed (fn [i m] (destination-filename m (inc i))))))
 
 (defn ensure-back-up-dir []
   (if (not (.mkdir (io/file back-up-path)))
     (throw (Exception. (str "Could not create back up dir: " back-up-path)))))
 
-(defn back-up-file [f]
-  (io/copy f (io/file (str back-up-path "/" (.getName f)))))
+(defn back-up-file [m]
+  (io/copy (:file m) (io/file (str back-up-path "/" (:filename m)))))
 
-(defn dest-path [f dest-dir-path]
-  (let [file-name      (-> f
-                           raw-file-metadata
-                           :original-utc-time
-                           ((fn [filename] ( str  "Paul-Williams-" filename)))
-                           (clojure.string/replace #":" "-"))
-        file-extension (clojure.string/lower-case (last (re-matches #".*\.(.*)" (.getName f))))]
-    (str dest-dir-path  "/" file-name "." file-extension)))
+(defn with-unique-destination-filenames [s]
+    (->> s
+       (group-by :original-utc-time)
+       (map (fn [me]
+                 (if (= 1 (count (val me)))
+                   (destination-filename (first (val me)))
+                   (with-unique-per-second-destination-filename (val me))
+                   )))
+       flatten
+       (sort-by :filename)))
 
-(defn move-to-geotagged-yes-dir [f]
-  (let [dest-path (dest-path f geotagged-yes-path)]
-    (if (not (.renameTo f (io/file dest-path)))
+(defn copy-to-originals-dir [m]
+  (io/copy (:file m) (io/file (str original-path "/" (:destination-filename m)))))
+
+(defn move-to-capture-one-dir [m]
+  (let [dest-path (str capture-one-path "/" (:destination-filename m))]
+    (if (not (.renameTo (:file m) (io/file dest-path)))
       (throw (Exception. (str "Could not move file to : " dest-path))))))
-
-(defn copy-to-originals-dir [f]
-  (io/copy f (io/file (dest-path f original-path))))
-
-(defn ensure-possibly-geotagged-dirs []
-  (do (if (not (.mkdir (io/file geotagged-yes-path)))
-        (throw (Exception. (str "Could not create geotagged yes path: " geotagged-yes-path)))) ))
 
 (defn delete-back-up-dir []
   (letfn [(delete-dir [f]

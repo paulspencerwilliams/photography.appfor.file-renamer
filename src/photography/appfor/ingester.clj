@@ -3,15 +3,15 @@
 
 (defn foo
   "I don't do a whole lot."
-  [x]
-  (let [to-ingest (io/raw-files-to-ingest)]
+  [_]
+  (let [to-ingest (->> (io/raw-files-to-ingest)
+                       (io/with-unique-destination-filenames))]
     (do (io/ensure-back-up-dir)
-        (io/ensure-possibly-geotagged-dirs)
         (doall (map #(do (io/back-up-file %)
                          (println (str "Backed up file                               " %))
-                         (io/copy-to-originals-dir %)
-                         (println (str "Move ASSUMED geotagged file to originals " %))
-                         (io/move-to-geotagged-yes-dir %)
-                         (println (str "Move ASSUMED geotagged file to geotagged/yes " %)))
+                         ;;(io/copy-to-originals-dir %)
+                         (println (str "Move to originals " %))
+                         (io/move-to-capture-one-dir %)
+                         (println (str "Move for capture one ingest " %)))
                     to-ingest))
         (io/delete-back-up-dir))))
