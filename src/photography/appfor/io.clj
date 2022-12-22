@@ -1,6 +1,7 @@
 (ns photography.appfor.io
   (:require [photography.appfor.utils :as u]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.string :refer [ends-with? upper-case]])
   (:import [com.drew.imaging ImageMetadataReader]
            [com.drew.metadata.exif ExifSubIFDDirectory]))
 
@@ -48,7 +49,8 @@
   (->> (io/file ingest-path)
        .listFiles
        (filter #(not (or (.isDirectory %)
-                         (= (.getName %) ".DS_Store"))))))
+                         (= (.getName %) ".DS_Store")
+                         (ends-with? (upper-case (.getName %)) ".XMP"))))))
 
 (defn ensure-back-up-dir []
   (if (not (.mkdir (io/file back-up-path)))
